@@ -8,71 +8,70 @@ import aiohttp_cors
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaRecorder
+from aiortc import  MediaStreamTrack
+from aiortc.contrib.media import MediaRelay  # Ensure this line is added
 
-from speech_to_text import transcribe  # Importing the transcribe function
+from speech_to_text import transcribe_stream
+
 
 logger = logging.getLogger("pc")
 pcs = set()
 
 async def offer(request):
-    try:
-        params = await request.json()
-        sdp = params.get("sdp")
-        type_ = params.get("type")
+    params = await request.json()
+    sdp = params.get("sdp")
+    type_ = params.get("type")
 
-        if not sdp or not type_:
-            return web.Response(status=400, text="Missing SDP or type in request")
+    if not sdp or not type_:
+        return web.Response(status=400, text="Missing SDP or type in request")
 
-        offer = RTCSessionDescription(sdp=sdp, type=type_)
+    offer = RTCSessionDescription(sdp=sdp, type=type_)
 
-        pc = RTCPeerConnection()
-        pc_id = f"PeerConnection({id(pc)})"
-        pcs.add(pc)
+    pc = RTCPeerConnection()
+    pc_id = f"PeerConnection({id(pc)})"
+    pcs.add(pc)
 
-        logger.info(f"{pc_id} Created for {request.remote}")
+    logger.info(f"{pc_id} Created for {request.remote}")
 
-        # Specify the audio file path here
-        audio_file_path = os.getenv('AUDIO_RECORD_PATH', 'output.mp3')
-        recorder = MediaRecorder(audio_file_path)
+    relay = MediaRelay()
 
-        @pc.on("track")
-        def on_track(track):
-            logger.info(f"{pc_id} Track {track.kind} received")
-            if track.kind == "audio":
-                recorder.addTrack(track)
+    @pc.on("track")
+    def on_track(track):
+        if track.kind == "audio":
+            logger.info(f"{pc_id} Audio track received")
+            relayed_track = relay.subscribe(track)
+            asyncio.ensure_future(transcribe_stream(audio_generator(relayed_track)))
 
-            @track.on("ended")
-            async def on_ended():
-                logger.info(f"{pc_id} Track {track.kind} ended")
-                await recorder.stop()
-                # Transcribe the audio file after recording
-                transcription = transcribe(audio_file_path)
-                print("Transcription:", transcription)
+    async def audio_generator(audio_track):
+    # Assuming you have a method to fetch frames from the audio track
+        while True:
+            frame = await audio_track.recv()
+            if not frame:
+                break
+            yield frame.to_bytes()  # Convert the frame to bytes
 
-        await pc.setRemoteDescription(offer)
-        await recorder.start()
+    await pc.setRemoteDescription(offer)
+    answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
 
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
+    return web.Response(
+        content_type="application/json",
+        text=json.dumps({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}),
+    )
 
-        return web.Response(
-            content_type="application/json",
-            text=json.dumps(
-                {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-            ),
-        )
-    except Exception as e:
-        logger.error("Failed to handle offer: %s", str(e))
-        return web.Response(status=500, text=str(e))
+# Include the rest of your existing code setup here
+
+
 
 async def on_shutdown(app):
     coros = [pc.close() for pc in pcs]
     await asyncio.gather(*coros)
     pcs.clear()
 
+# In your main section after setting up the app
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="WebRTC audio recorder")
-    parser.add_argument("--port", type=int, default=8999, help="Port for HTTP server (default: 8080)")
+    parser.add_argument("--port", type=int, default=8080, help="Port for HTTP server (default: 8080)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)

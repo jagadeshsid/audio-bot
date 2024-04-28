@@ -43,7 +43,7 @@ function startAudioStreaming() {
 
 // Function to send the offer to the backend
 function sendOfferToServer() {
-    var serverUrl = 'http://localhost:8999/offer';
+    var serverUrl = 'http://localhost:8080/offer';
 
     fetch(serverUrl, {
         method: 'POST',
@@ -56,6 +56,7 @@ function sendOfferToServer() {
     .then(response => response.json())
     .then(answer => {
         // Set remote description with the answer received from the server
+        console.log(answer.JSON)
         pc.setRemoteDescription(new RTCSessionDescription(answer));
     })
     .catch(error => console.error('Error sending offer to server:', error));
