@@ -6,12 +6,30 @@ var audioStream = null;
 var aiResponse = ""
 
 
-function textToSpeech(text) { 
+function selectMicrosoftZiraVoice() {
+    const voices = speechSynthesis.getVoices();
+    const ziraVoice = voices.find(voice => voice.name.includes("Microsoft Zira"));
+    return ziraVoice || voices[0];
+}
+
+function textToSpeech(text) {
+    if (audioStream) {
+        audioStream.getTracks().forEach(track => track.enabled = false);
+    }
+
     var utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
     utterance.rate = 1;
     utterance.pitch = 1;
-    utterance.voice = speechSynthesis.getVoices()[2]
+    utterance.voice = selectMicrosoftZiraVoice();
+    utterance.onend = function () {
+        console.log('Speech synthesis finished.');
+
+        // Resume the audio stream
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.enabled = true);
+        }
+    };
     window.speechSynthesis.speak(utterance);
 }
 

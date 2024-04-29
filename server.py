@@ -28,8 +28,12 @@ stream = output.add_stream('mp3')
 class DataConnection:
     channel = None
 
+class Interview:
+    def __init__(self):
+        self.is_interview_active = True
 
 
+interview = Interview()
 def channel_log(channel, t, message):
     print("channel(%s) %s %s" % (channel.label, t, message))
 
@@ -74,7 +78,7 @@ async def offer(request):
         if track.kind == "audio":
             logger.info(f"{pc_id} Audio track received")
             relayed_track = relay.subscribe(track)
-            asyncio.create_task(transcribe_stream(audio_generator(relayed_track), webrtcdatachannel))
+            asyncio.create_task(transcribe_stream(audio_generator(relayed_track), webrtcdatachannel, interview))
     async def start_listening(ag):
         while True:
             print(await ag.__anext__())
@@ -104,9 +108,11 @@ async def offer(request):
 
 
 async def on_shutdown(app):
+    print("shutdown is called")
     coros = [pc.close() for pc in pcs]
     await asyncio.gather(*coros)
     pcs.clear()
+    interview.is_interview_active = False
 
 # In your main section after setting up the app
 if __name__ == "__main__":
@@ -117,6 +123,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     app = web.Application()
+    interview = Interview()
     app.on_shutdown.append(on_shutdown)
     app.router.add_post("/offer", offer)
 
