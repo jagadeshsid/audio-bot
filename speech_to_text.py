@@ -64,7 +64,7 @@ async def transcribe_stream(audio_stream, webrtcdatachannel, interview):
     async def get_ai_response(transcription):
         open_ai_client.add_user_message(transcription)
         ai_response = open_ai_client.call_openai()
-        timeManaging.wait_based_on_openai_response = max(16, len(ai_response) / 8) 
+        timeManaging.wait_based_on_openai_response = max(16, len(ai_response) / 8)
         if(webrtcdatachannel.channel is not None and ai_response is not None):
             webrtcdatachannel.channel.send(ai_response)
         # final_response.clear()
@@ -73,18 +73,11 @@ async def transcribe_stream(audio_stream, webrtcdatachannel, interview):
     async def silence_detecter(timeManaging):
         while interview.is_interview_active:
             if time.time() - timeManaging.last_response_time > 3 :
-                print("Interview status is: \n\n\n")
-                print(interview.is_interview_active)
-                print("\n\n\n")
                 transcription = make_string(final_response)
-                print(transcription)
                 asyncio.create_task(get_ai_response(transcription))
                 final_response.clear()
-                print("\n\n\n" + transcription + "\n")
-                print("sleeping now for " + str(timeManaging.wait_based_on_openai_response) + " seconds")
                 await asyncio.sleep(timeManaging.wait_based_on_openai_response)
                 timeManaging.last_response_time = time.time()
-                print("awake now")
             await asyncio.sleep(1)
 
     asyncio.create_task(silence_detecter(timeManaging))

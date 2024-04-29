@@ -72,9 +72,6 @@ async def offer(request):
 
     @pc.on("track")
     async def on_track(track):
-        print("\n\n\n\n")
-        print("track is running")
-        print("\n\n\n\n")
         if track.kind == "audio":
             logger.info(f"{pc_id} Audio track received")
             relayed_track = relay.subscribe(track)
@@ -84,7 +81,6 @@ async def offer(request):
             print(await ag.__anext__())
 
     async def audio_generator(audio_track):
-    # Assuming you have a method to fetch frames from the audio track
         while True:
             frame = await audio_track.recv()
             if not frame:
@@ -92,7 +88,6 @@ async def offer(request):
             encoded_frame = stream.encode(frame)
             if len(encoded_frame) > 0:
                 yield encoded_frame[0].to_bytes()
-              # Convert the frame to bytes
 
     await pc.setRemoteDescription(offer)
     answer = await pc.createAnswer()
@@ -103,8 +98,15 @@ async def offer(request):
         text=json.dumps({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}),
     )
 
-# Include the rest of your existing code setup here
+async def index(request):
+    with open('index.html', 'r') as file:
+        html_content = file.read()
+    return web.Response(text=html_content, content_type='text/html')
 
+async def clientjs(request):
+    with open('client.js', 'r') as file:
+        html_content = file.read()
+    return web.Response(text=html_content, content_type='text/html')
 
 
 async def on_shutdown(app):
@@ -126,6 +128,8 @@ if __name__ == "__main__":
     interview = Interview()
     app.on_shutdown.append(on_shutdown)
     app.router.add_post("/offer", offer)
+    app.router.add_get('/', index)
+    app.router.add_get('/client.js', clientjs)
 
     # Setup CORS
     cors = aiohttp_cors.setup(app, defaults={
