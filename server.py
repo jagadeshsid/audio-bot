@@ -4,18 +4,42 @@ import json
 import logging
 import os
 import aiohttp_cors
+import av
 
 from aiohttp import web
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaRecorder
 from aiortc import  MediaStreamTrack
 from aiortc.contrib.media import MediaRelay  # Ensure this line is added
+import numpy as np
 
 from speech_to_text import transcribe_stream
 
 
 logger = logging.getLogger("pc")
 pcs = set()
+
+webrtcdatachannel = None
+
+output = av.open('dash.mp3', 'w')
+stream = output.add_stream('mp3')
+
+
+class DataConnection:
+    channel = None
+
+
+
+def channel_log(channel, t, message):
+    print("channel(%s) %s %s" % (channel.label, t, message))
+
+
+def channel_send(channel, message):
+    channel_log(channel, ">", message)
+    channel.send(message)
+
+time_start = None
+
 
 async def offer(request):
     params = await request.json()
@@ -28,19 +52,33 @@ async def offer(request):
     offer = RTCSessionDescription(sdp=sdp, type=type_)
 
     pc = RTCPeerConnection()
+    
+    webrtcdatachannel = DataConnection()
     pc_id = f"PeerConnection({id(pc)})"
     pcs.add(pc)
 
+    @pc.on("datachannel")
+    async def on_datachannel(channel):
+        webrtcdatachannel.channel = channel
+
     logger.info(f"{pc_id} Created for {request.remote}")
+
+    print("\n\n media relay time")
 
     relay = MediaRelay()
 
     @pc.on("track")
-    def on_track(track):
+    async def on_track(track):
+        print("\n\n\n\n")
+        print("track is running")
+        print("\n\n\n\n")
         if track.kind == "audio":
             logger.info(f"{pc_id} Audio track received")
             relayed_track = relay.subscribe(track)
-            asyncio.ensure_future(transcribe_stream(audio_generator(relayed_track)))
+            asyncio.create_task(transcribe_stream(audio_generator(relayed_track), webrtcdatachannel))
+    async def start_listening(ag):
+        while True:
+            print(await ag.__anext__())
 
     async def audio_generator(audio_track):
     # Assuming you have a method to fetch frames from the audio track
@@ -48,7 +86,10 @@ async def offer(request):
             frame = await audio_track.recv()
             if not frame:
                 break
-            yield frame.to_bytes()  # Convert the frame to bytes
+            encoded_frame = stream.encode(frame)
+            if len(encoded_frame) > 0:
+                yield encoded_frame[0].to_bytes()
+              # Convert the frame to bytes
 
     await pc.setRemoteDescription(offer)
     answer = await pc.createAnswer()

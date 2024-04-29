@@ -2,11 +2,26 @@ var pc = null;
 var audioStream = null;
 
 // Function to initialize the WebRTC connection
+
+var aiResponse = ""
+
+
+function textToSpeech(text) { 
+    var utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.voice = speechSynthesis.getVoices()[2]
+    window.speechSynthesis.speak(utterance);
+}
+
 function initializeWebRTC() {
     // Create the peer connection
     pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.miwifi.com:3478' }]
     });
+
+    
 
     // Handle ICE candidates
     pc.onicecandidate = event => {
@@ -19,14 +34,42 @@ function initializeWebRTC() {
         }
     };
 
+    dataChannel = pc.createDataChannel("chat");
+
+    // Setup data channel event listeners
+    dataChannel.onopen = function(event) {
+        console.log("Data channel is open");
+    };
+
+    dataChannel.sendOfferToServer = function(offer, dataChannel) {
+        console.log("data channal offer to the server");
+        console.log(offer);
+        console.log(dataChannel);
+        dataChannel.send(offer);
+    };
+
+    dataChannel.onerror = function(event) {
+        console.log("Data channel error:", event);
+    };
+
+
+    dataChannel.onmessage = function(event) {
+        aiResponse = event.data;
+        textToSpeech(aiResponse);
+
+        console.log("Received message:", event.data);
+    };
+
+    dataChannel.onclose = function() {
+        console.log("Data channel is closed");
+    };
+
     // Get user media (audio) when the "start" button is clicked
     document.getElementById('start').addEventListener('click', startAudioStreaming);
 }
 
 // Function to start audio streaming to the backend
 function startAudioStreaming() {
-    var serverUrl = 'http://localhost:8999/offer';
-
     // Get user media (audio)
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
         .then(stream => {
@@ -43,6 +86,7 @@ function startAudioStreaming() {
 
 // Function to send the offer to the backend
 function sendOfferToServer() {
+    console.log("Sending offer to the server");
     var serverUrl = 'http://localhost:8080/offer';
 
     fetch(serverUrl, {
@@ -56,7 +100,8 @@ function sendOfferToServer() {
     .then(response => response.json())
     .then(answer => {
         // Set remote description with the answer received from the server
-        console.log(answer.JSON)
+        console.log("answer no one asked");
+        console.log(answer);
         pc.setRemoteDescription(new RTCSessionDescription(answer));
     })
     .catch(error => console.error('Error sending offer to server:', error));
@@ -72,6 +117,10 @@ function stopWebRTC() {
     if (audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
         audioStream = null;
+    }
+    if (dataChannel) {
+        dataChannel.close();
+        dataChannel = null;
     }
 }
 
