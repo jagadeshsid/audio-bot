@@ -4,9 +4,17 @@ import open_ai_chat
 import time
 
 
+last_response_time = time.time()
+
+class TimeManaging:
+    def __init__(self):
+        self.last_response_time = time.time()
+
 async def transcribe_stream(audio_stream, webrtcdatachannel):
 
-    open_ai_key = "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"
+    timeManaging = TimeManaging()
+
+    open_ai_key = ""
 
     open_ai_client = open_ai_chat.OpenAIChat(open_ai_key)
     print("transcribing the stream")
@@ -31,7 +39,7 @@ async def transcribe_stream(audio_stream, webrtcdatachannel):
     requests = request_generator(audio_stream).__aiter__()
     response = await client.streaming_recognize(requests=requests)
 
-    # print(response)
+    print(response)
 
     # return True
     kl = 0
@@ -51,24 +59,35 @@ async def transcribe_stream(audio_stream, webrtcdatachannel):
                 final_response.pop()
                 remove_duplicates(final_response)
 
-    async def abcd(transcription):
+    async def get_ai_response(transcription):
         open_ai_client.add_user_message(transcription)
         ai_response = open_ai_client.call_openai()
-        if(webrtcdatachannel.channel is not None):
+        if(webrtcdatachannel.channel is not None and ai_response is not None):
             webrtcdatachannel.channel.send(ai_response)
         # final_response.clear()
 
 
+    async def silence_detecter(timeManaging):
+        while True:
+            if time.time() - timeManaging.last_response_time > 3 :
+                print("silence detected")
+                transcription = make_string(final_response)
+                print(transcription)
+                asyncio.create_task(get_ai_response(transcription))
+                final_response.clear()
+                print("sleeping now")
+                await asyncio.sleep(16)
+                last_response_time = time.time()
+                print("awake now")
+            await asyncio.sleep(1)
+
+    asyncio.create_task(silence_detecter(timeManaging))
+
     async for i in response:
         final_response.append(i.results[0].alternatives[0].transcript)
         remove_duplicates(final_response)
-
         print(f"{i.results[0].alternatives[0].transcript}" )
-        kl = kl + 1
-        if(kl % 20 == 0):
-            transcription = make_string(final_response)
-            print(transcription)
-            asyncio.create_task(abcd(transcription))
-            final_response.clear()
+        timeManaging.last_response_time = time.time()
+            
             # return transcription
         

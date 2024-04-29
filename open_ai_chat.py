@@ -12,11 +12,7 @@ class OpenAIChat:
         self.conversation_history = [
             {
                 "role": "system",
-                "content": "You are a technical interviewer. A user will send you his introduction and you will ask him technical questions."
-            },
-            {
-                "role": "user",
-                "content": "Hi, I am Jagadesh. I have 5 years of experience with working in Java backend development."
+                "content": "You are a technical interviewer. A user will send you his introduction and you will ask him technical questions. You will ask 1 question at a time based on the user input."
             }
         ]
 

@@ -3,11 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <title>Audio Streamer</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50; /* Green */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:active {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        #instructions {
+            margin-top: 20px;
+            background: #ffffff;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+        }
+        ol {
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
-    <h2>Audio Streamer</h2>
-    <button id="start">Start Streaming</button>
-    <button id="stop">Stop Streaming</button>
+    <h2>AI Interviewer</h2>
+    <button id="start" onclick="handleStart()">Start Streaming</button>
+    <button id="stop" onclick="handleStop()">Stop Streaming</button>
+    <div id="instructions">
+        <h3>Instructions:</h3>
+        <ol>
+            <li><b>Press the "Start" button and introduce yourself</b>, detailing your technical background and areas of expertise.</li>
+            <li><b>Pause for at least 3 seconds when you've finished speaking.</b> This signals to the AI that you have concluded your input, prompting it to begin formulating a response.</li>
+            <li><b>Press the "Stop" button</b> once you are done with the interview</li>
+        </ol>
+    </div>
+    <script>
+        function handleStart() {
+            console.log("Streaming started");
+            document.getElementById('start').disabled = true;
+            document.getElementById('stop').disabled = false;
+        }
+
+        function handleStop() {
+            console.log("Streaming stopped");
+            document.getElementById('start').disabled = false;
+            document.getElementById('stop').disabled = true;
+        }
+
+        // Initially disable the stop button
+        document.getElementById('stop').disabled = true;
+    </script>
     <script src="client.js"></script>
 </body>
 </html>

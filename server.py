@@ -38,10 +38,9 @@ def channel_send(channel, message):
     channel_log(channel, ">", message)
     channel.send(message)
 
-time_start = None
-
 
 async def offer(request):
+    print("offer started")
     params = await request.json()
     sdp = params.get("sdp")
     type_ = params.get("type")
